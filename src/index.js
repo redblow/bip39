@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const createHash = require("create-hash");
-const pbkdf2_1 = require("pbkdf2");
+const crypto_js_1 = require("crypto-js");
 const randomBytes = require("randombytes");
 const _wordlists_1 = require("./_wordlists");
 let DEFAULT_WORDLIST = _wordlists_1._default;
@@ -10,18 +9,23 @@ const INVALID_ENTROPY = 'Invalid entropy';
 const INVALID_CHECKSUM = 'Invalid mnemonic checksum';
 const WORDLIST_REQUIRED = 'A wordlist is required but a default could not be found.\n' +
     'Please explicitly pass a 2048 word array explicitly.';
-function pbkdf2Promise(password, saltMixin, iterations, keylen, digest) {
-    return Promise.resolve().then(() => new Promise((resolve, reject) => {
-        const callback = (err, derivedKey) => {
-            if (err) {
-                return reject(err);
-            }
-            else {
-                return resolve(derivedKey);
-            }
-        };
-        pbkdf2_1.pbkdf2(password, saltMixin, iterations, keylen, digest, callback);
-    }));
+function pbkdf2Promise(password, saltMixin, iterations, keylen) {
+    const KDFOption = {
+        /**
+         * The key size in words to generate.
+         */
+        keySize: keylen,
+        /**
+         * The hasher to use.
+         */
+        // hasher: CryptoJS.algo.SHA256.create({blockSize:32}).update(password.toString()).reset(),
+        /**
+         * The number of iterations to perform.
+         */
+        iterations
+    };
+    const PBKDF21 = crypto_js_1.PBKDF2(password.toString(), saltMixin.toString(), KDFOption).words;
+    return Promise.resolve(Buffer.from(PBKDF21));
 }
 function normalize(str) {
     return (str || '').normalize('NFKD');
@@ -41,25 +45,25 @@ function bytesToBinary(bytes) {
 function deriveChecksumBits(entropyBuffer) {
     const ENT = entropyBuffer.length * 8;
     const CS = ENT / 32;
-    const hash = createHash('sha256')
-        .update(entropyBuffer)
-        .digest();
-    return bytesToBinary(Array.from(hash)).slice(0, CS);
+    const hash = crypto_js_1.SHA256(entropyBuffer.toString());
+    return bytesToBinary(Array.from(hash.words)).slice(0, CS);
 }
 function salt(password) {
     return 'mnemonic' + (password || '');
 }
 function mnemonicToSeedSync(mnemonic, password) {
-    const mnemonicBuffer = Buffer.from(normalize(mnemonic), 'utf8');
-    const saltBuffer = Buffer.from(salt(normalize(password)), 'utf8');
-    return pbkdf2_1.pbkdf2Sync(mnemonicBuffer, saltBuffer, 2048, 64, 'sha512');
+    const mnemonicBuffer = Buffer.from(normalize(mnemonic), 'utf8').toString();
+    const saltBuffer = Buffer.from(salt(normalize(password)), 'utf8').toString();
+    const PBKDF21 = crypto_js_1.PBKDF2(mnemonicBuffer, saltBuffer, { keySize: 64, iterations: 2048 }).words;
+    return Buffer.from(PBKDF21);
+    // return pbkdf2Sync(mnemonicBuffer, saltBuffer, 2048, 64, 'sha512');
 }
 exports.mnemonicToSeedSync = mnemonicToSeedSync;
 function mnemonicToSeed(mnemonic, password) {
     return Promise.resolve().then(() => {
         const mnemonicBuffer = Buffer.from(normalize(mnemonic), 'utf8');
         const saltBuffer = Buffer.from(salt(normalize(password)), 'utf8');
-        return pbkdf2Promise(mnemonicBuffer, saltBuffer, 2048, 64, 'sha512');
+        return pbkdf2Promise(mnemonicBuffer, saltBuffer, 2048, 64);
     });
 }
 exports.mnemonicToSeed = mnemonicToSeed;

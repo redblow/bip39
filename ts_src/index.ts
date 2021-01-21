@@ -1,5 +1,4 @@
-import * as createHash from 'create-hash';
-import { pbkdf2, pbkdf2Sync } from 'pbkdf2';
+import {PBKDF2,SHA256} from 'crypto-js';
 import * as randomBytes from 'randombytes';
 import { _default as _DEFAULT_WORDLIST, wordlists } from './_wordlists';
 
@@ -17,23 +16,25 @@ function pbkdf2Promise(
   saltMixin: string | Buffer,
   iterations: number,
   keylen: number,
-  digest: string,
+  // digest: string,
 ): Promise<Buffer> {
-  return Promise.resolve().then(
-    (): Promise<Buffer> =>
-      new Promise(
-        (resolve, reject): void => {
-          const callback = (err: Error, derivedKey: Buffer): void => {
-            if (err) {
-              return reject(err);
-            } else {
-              return resolve(derivedKey);
-            }
-          };
-          pbkdf2(password, saltMixin, iterations, keylen, digest, callback);
-        },
-      ),
-  );
+  const KDFOption = {
+    /**
+     * The key size in words to generate.
+     */
+    keySize: keylen,
+    /**
+     * The hasher to use.
+     */
+    // hasher: CryptoJS.algo.SHA256.create({blockSize:32}).update(password.toString()).reset(),
+    /**
+     * The number of iterations to perform.
+     */
+    iterations
+  };
+
+  const PBKDF21 = PBKDF2(password.toString(), saltMixin.toString(), KDFOption).words;
+  return Promise.resolve(Buffer.from(PBKDF21));
 }
 
 function normalize(str?: string): string {
@@ -58,11 +59,9 @@ function bytesToBinary(bytes: number[]): string {
 function deriveChecksumBits(entropyBuffer: Buffer): string {
   const ENT = entropyBuffer.length * 8;
   const CS = ENT / 32;
-  const hash = createHash('sha256')
-    .update(entropyBuffer)
-    .digest();
+  const hash = SHA256(entropyBuffer.toString());
 
-  return bytesToBinary(Array.from(hash)).slice(0, CS);
+  return bytesToBinary(Array.from(hash.words)).slice(0, CS);
 }
 
 function salt(password?: string): string {
@@ -73,10 +72,12 @@ export function mnemonicToSeedSync(
   mnemonic: string,
   password?: string,
 ): Buffer {
-  const mnemonicBuffer = Buffer.from(normalize(mnemonic), 'utf8');
-  const saltBuffer = Buffer.from(salt(normalize(password)), 'utf8');
+  const mnemonicBuffer = Buffer.from(normalize(mnemonic), 'utf8').toString();
+  const saltBuffer = Buffer.from(salt(normalize(password)), 'utf8').toString();
 
-  return pbkdf2Sync(mnemonicBuffer, saltBuffer, 2048, 64, 'sha512');
+  const PBKDF21 = PBKDF2(mnemonicBuffer, saltBuffer, { keySize: 64, iterations: 2048 }).words;
+  return Buffer.from(PBKDF21);
+  // return pbkdf2Sync(mnemonicBuffer, saltBuffer, 2048, 64, 'sha512');
 }
 
 export function mnemonicToSeed(
@@ -87,7 +88,7 @@ export function mnemonicToSeed(
     (): Promise<Buffer> => {
       const mnemonicBuffer = Buffer.from(normalize(mnemonic), 'utf8');
       const saltBuffer = Buffer.from(salt(normalize(password)), 'utf8');
-      return pbkdf2Promise(mnemonicBuffer, saltBuffer, 2048, 64, 'sha512');
+      return pbkdf2Promise(mnemonicBuffer, saltBuffer, 2048, 64);
     },
   );
 }
