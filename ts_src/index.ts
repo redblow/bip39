@@ -1,4 +1,5 @@
 import {PBKDF2,SHA256} from 'crypto-js';
+import * as CryptoJS from 'crypto-js';
 import * as randomBytes from 'randombytes';
 import { _default as _DEFAULT_WORDLIST, wordlists } from './_wordlists';
 
