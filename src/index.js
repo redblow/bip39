@@ -45,7 +45,7 @@ function bytesToBinary(bytes) {
 function deriveChecksumBits(entropyBuffer) {
     const ENT = entropyBuffer.length * 8;
     const CS = ENT / 32;
-    const hash = crypto_js_1.SHA256(entropyBuffer.toString());
+    const hash = crypto_js_1.SHA256(entropyBuffer);
     return bytesToBinary(Array.from(hash.words)).slice(0, CS);
 }
 function salt(password) {

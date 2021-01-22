@@ -56,10 +56,10 @@ function bytesToBinary(bytes: number[]): string {
   return bytes.map((x: number): string => lpad(x.toString(2), '0', 8)).join('');
 }
 
-function deriveChecksumBits(entropyBuffer: Buffer): string {
+function deriveChecksumBits(entropyBuffer: any): string {
   const ENT = entropyBuffer.length * 8;
   const CS = ENT / 32;
-  const hash = SHA256(entropyBuffer.toString());
+  const hash = SHA256(entropyBuffer);
 
   return bytesToBinary(Array.from(hash.words)).slice(0, CS);
 }
