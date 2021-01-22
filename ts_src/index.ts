@@ -26,7 +26,7 @@ function pbkdf2Promise(
     /**
      * The hasher to use.
      */
-    // hasher: CryptoJS.algo.SHA256.create({blockSize:32}).update(password.toString()).reset(),
+    hasher: CryptoJS.algo.SHA512,
     /**
      * The number of iterations to perform.
      */
@@ -75,9 +75,8 @@ export function mnemonicToSeedSync(
   const mnemonicBuffer = Buffer.from(normalize(mnemonic), 'utf8').toString();
   const saltBuffer = Buffer.from(salt(normalize(password)), 'utf8').toString();
 
-  const PBKDF21 = PBKDF2(mnemonicBuffer, saltBuffer, { keySize: 64, iterations: 2048 }).words;
+  const PBKDF21 = PBKDF2(mnemonicBuffer, saltBuffer, { keySize: 64, hasher: CryptoJS.algo.SHA512, iterations: 2048 }).words;
   return Buffer.from(PBKDF21);
-  // return pbkdf2Sync(mnemonicBuffer, saltBuffer, 2048, 64, 'sha512');
 }
 
 export function mnemonicToSeed(
